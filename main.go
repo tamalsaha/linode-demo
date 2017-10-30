@@ -73,10 +73,8 @@ func detectInstanceImage() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	oneliners.FILE("Checking for instance image")
 	for _, d := range resp.Distributions {
 		if d.Is64Bit == 1 && d.Label.String() == "Ubuntu 16.04 LTS" {
-			oneliners.FILE(fmt.Printf("Instance image %v with id %v found", d.Label.String(), d.DistributionId))
 			return d.DistributionId, nil
 		}
 	}
