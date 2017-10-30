@@ -7,7 +7,11 @@ import (
 	"errors"
 	"time"
 
+	"os"
+	"strings"
+
 	"github.com/appscode/data"
+	"github.com/appscode/log"
 	"github.com/tamalsaha/go-oneliners"
 	"github.com/taoh/linodego"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -23,12 +27,13 @@ var (
 
 	client *linodego.Client
 
-	clusterName   = ""
-	zone          = ""
-	sku           = ""
-	kernel        = ""
-	instanceImage = ""
-	rootPassword  = "tamal" // CHANGE_IT
+	kernel        = 0
+	instanceImage = 0
+
+	clusterName  = ""
+	zone         = ""
+	sku          = ""
+	rootPassword = "tamal" // CHANGE_IT
 
 	scriptName = "linode-demo"
 
@@ -44,8 +49,62 @@ type NodeInfo struct {
 }
 
 func main() {
-	err := createNode()
-	oneliners.FILE(err)
+	client = linodego.NewClient(os.Getenv("LINODE_TOKEN"), nil)
+
+	var err error
+	kernel, err = detectKernel()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	oneliners.FILE("Kernel = ", kernel)
+
+	instanceImage, err = detectInstanceImage()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	oneliners.FILE("InstanceImage = ", instanceImage)
+
+	//err := createNode()
+	//oneliners.FILE(err)
+}
+
+func detectInstanceImage() (int, error) {
+	resp, err := client.Avail.Distributions()
+	if err != nil {
+		return 0, err
+	}
+	oneliners.FILE("Checking for instance image")
+	for _, d := range resp.Distributions {
+		if d.Is64Bit == 1 && d.Label.String() == "Debian 8" {
+			oneliners.FILE(fmt.Printf("Instance image %v with id %v found", d.Label.String(), d.DistributionId))
+			return d.DistributionId, nil
+		}
+	}
+	return 0, errors.New("Can't find Debian 8 image")
+}
+
+func detectKernel() (int, error) {
+	resp, err := client.Avail.Kernels(map[string]string{
+		"isKVM": "true",
+	})
+	if err != nil {
+		return 0, err
+	}
+	kernelId := -1
+	for _, d := range resp.Kernels {
+		if d.IsPVOPS == 1 {
+			if strings.HasPrefix(d.Label.String(), "Latest 64 bit") {
+				return d.KernelId, nil
+			}
+			if strings.Contains(d.Label.String(), "x86_64") && d.KernelId > kernelId {
+				kernelId = d.KernelId
+			}
+		}
+	}
+	if kernelId >= 0 {
+		return kernelId, nil
+	}
+	return 0, errors.New("can't find Kernel")
 }
 
 func waitForStatus(id, status int) error {
@@ -103,7 +162,7 @@ apt-get update
 		}
 	}
 
-	resp, err := client.StackScript.Create(scriptName, instanceImage, script, map[string]string{
+	resp, err := client.StackScript.Create(scriptName, strconv.Itoa(instanceImage), script, map[string]string{
 		"Description": fmt.Sprintf("Startup script for of Cluster %s", clusterName),
 	})
 	if err != nil {
@@ -182,10 +241,11 @@ func createNode() error {
 	if err != nil {
 		return err
 	}
-	distributionID, err := strconv.Atoi(instanceImage)
-	if err != nil {
-		return err
-	}
+	distributionID := instanceImage
+	//, err := strconv.Atoi(instanceImage)
+	//if err != nil {
+	//	return err
+	//}
 	swapDiskSize := 512                // MB
 	rootDiskSize := mt.Disk*1024 - 512 // MB
 	args := map[string]string{
@@ -200,11 +260,12 @@ func createNode() error {
 		return err
 	}
 
+	kernelId := kernel
 	// TODO: Boot to grub2 : kernel id 201
-	kernelId, err := strconv.Atoi(kernel)
-	if err != nil {
-		return err
-	}
+	//kernelId, err := strconv.Atoi(kernel)
+	//if err != nil {
+	//	return err
+	//}
 	config, err := client.Config.Create(linodeId, kernelId, name, map[string]string{
 		"RootDeviceNum": "1",
 		"DiskList":      fmt.Sprintf("%d,%d", rootDisk.DiskJob.DiskId, swapDisk.DiskJob.DiskId),
