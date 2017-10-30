@@ -75,12 +75,12 @@ func detectInstanceImage() (int, error) {
 	}
 	oneliners.FILE("Checking for instance image")
 	for _, d := range resp.Distributions {
-		if d.Is64Bit == 1 && d.Label.String() == "Debian 8" {
+		if d.Is64Bit == 1 && d.Label.String() == "Ubuntu 16.04 LTS" {
 			oneliners.FILE(fmt.Printf("Instance image %v with id %v found", d.Label.String(), d.DistributionId))
 			return d.DistributionId, nil
 		}
 	}
-	return 0, errors.New("Can't find Debian 8 image")
+	return 0, errors.New("can't find `Ubuntu 16.04 LTS` image")
 }
 
 func detectKernel() (int, error) {
