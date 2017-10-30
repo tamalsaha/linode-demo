@@ -1,0 +1,40 @@
+hash: 23819b40daa6cc9368ae1d995142afc8e037d1fc2b18e400cb5b89688bb2950b
+updated: 2017-10-29T23:47:11.32158494-07:00
+imports:
+- name: github.com/appscode/data
+  version: f4f29933a76479d990f6adbd70157f8cbfbaefc7
+  subpackages:
+  - files
+- name: github.com/appscode/go
+  version: c01120782e8b487d1c86ab4299241edfe36a3ca2
+- name: github.com/golang/glog
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+- name: github.com/sirupsen/logrus
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
+- name: github.com/tamalsaha/go-oneliners
+  version: 4ca214c0460d9077e49e3ef394785f92408f7699
+- name: github.com/taoh/linodego
+  version: 7e90047cfdce66fc9df2763f18ca0fde32dbb345
+  repo: https://github.com/appscode/linodego.git
+  vcs: git
+- name: golang.org/x/crypto
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  subpackages:
+  - ssh/terminal
+- name: golang.org/x/sys
+  version: 7ddbeae9ae08c6a06a59597f0c9edbc5ff2444ce
+  subpackages:
+  - unix
+  - windows
+- name: k8s.io/api
+  version: fe29995db37613b9c5b2a647544cf627bfa8d299
+- name: k8s.io/apiextensions-apiserver
+  version: 5bc0d8f05a92b3a09bcf1a9db442a29c0b7a514d
+- name: k8s.io/apimachinery
+  version: 019ae5ada31de202164b118aee88ee2d14075c31
+  subpackages:
+  - pkg/util/runtime
+  - pkg/util/wait
+- name: k8s.io/client-go
+  version: 35874c597fed17ca62cd197e516d7d5ff9a2958c
+testImports: []

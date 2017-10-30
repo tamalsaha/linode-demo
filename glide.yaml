@@ -1,0 +1,21 @@
+package: github.com/tamalsaha/leader-election-demo
+import:
+- package: github.com/appscode/go
+- package: k8s.io/api
+  version: fe29995db37613b9c5b2a647544cf627bfa8d299
+- package: k8s.io/apiextensions-apiserver
+  version: release-1.8
+- package: k8s.io/apimachinery
+  version: 019ae5ada31de202164b118aee88ee2d14075c31
+- package: k8s.io/client-go
+  version: v5.0.0
+- package: github.com/taoh/linodego
+  repo: https://github.com/appscode/linodego.git
+  version: master
+  vcs: git
+- package: k8s.io/api
+  version: fe29995db37613b9c5b2a647544cf627bfa8d299
+- package: k8s.io/apimachinery
+  version: 019ae5ada31de202164b118aee88ee2d14075c31
+- package: k8s.io/client-go
+  version: v5.0.0
