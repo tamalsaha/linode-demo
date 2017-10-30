@@ -1,17 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-
 	"errors"
-	"time"
-
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/appscode/data"
 	"github.com/appscode/log"
+	"github.com/kr/pretty"
 	"github.com/tamalsaha/go-oneliners"
 	"github.com/taoh/linodego"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -30,9 +29,9 @@ var (
 	kernel        = 0
 	instanceImage = 0
 
-	clusterName  = ""
-	zone         = ""
-	sku          = ""
+	clusterName  = "c1"
+	zone         = "3"
+	sku          = "1"
 	rootPassword = "tamal" // CHANGE_IT
 
 	scriptName = "linode-demo"
@@ -64,21 +63,19 @@ func main() {
 	}
 	oneliners.FILE("InstanceImage = ", instanceImage)
 
+	scriptId, err := createOrUpdateStackScript()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	oneliners.FILE("scriptId = ", scriptId)
+
+	err = createNode()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	//err := createNode()
 	//oneliners.FILE(err)
-}
-
-func detectInstanceImage() (int, error) {
-	resp, err := client.Avail.Distributions()
-	if err != nil {
-		return 0, err
-	}
-	for _, d := range resp.Distributions {
-		if d.Is64Bit == 1 && d.Label.String() == "Ubuntu 16.04 LTS" {
-			return d.DistributionId, nil
-		}
-	}
-	return 0, errors.New("can't find `Ubuntu 16.04 LTS` image")
 }
 
 func detectKernel() (int, error) {
@@ -105,6 +102,19 @@ func detectKernel() (int, error) {
 	return 0, errors.New("can't find Kernel")
 }
 
+func detectInstanceImage() (int, error) {
+	resp, err := client.Avail.Distributions()
+	if err != nil {
+		return 0, err
+	}
+	for _, d := range resp.Distributions {
+		if d.Is64Bit == 1 && d.Label.String() == "Ubuntu 16.04 LTS" {
+			return d.DistributionId, nil
+		}
+	}
+	return 0, errors.New("can't find `Ubuntu 16.04 LTS` image")
+}
+
 func waitForStatus(id, status int) error {
 	attempt := 0
 	return wait.PollImmediate(RetryInterval, RetryTimeout, func() (bool, error) {
@@ -118,7 +128,7 @@ func waitForStatus(id, status int) error {
 			return false, nil
 		}
 		server := resp.Linodes[0]
-		oneliners.FILE(fmt.Printf("Attempt %v: Instance `%v` is in status `%s`", attempt, id, server.Status))
+		oneliners.FILE(fmt.Printf("Attempt %v: Instance `%v` is in status `%s`", attempt, id, statusString(server.Status)))
 		if server.Status == status {
 			return true, nil
 		}
@@ -140,9 +150,10 @@ func getStartupScriptID() (int, error) {
 }
 
 func createOrUpdateStackScript() (int, error) {
-	script := `#! /bin/bash
+	script := fmt.Sprintf(`#! /bin/bash
+# %s
 apt-get update
-`
+`, time.Now().String())
 	scripts, err := client.StackScript.List(0)
 	if err != nil {
 		return 0, err
@@ -176,6 +187,24 @@ const (
 	LinodeStatus_Running      = 1
 	LinodeStatus_PoweredOff   = 2
 )
+
+/*
+Status values are -1: Being Created, 0: Brand New, 1: Running, and 2: Powered Off.
+*/
+func statusString(status int) string {
+	switch status {
+	case LinodeStatus_BeingCreated:
+		return "Being Created"
+	case LinodeStatus_BrandNew:
+		return "Brand New"
+	case LinodeStatus_Running:
+		return "Running"
+	case LinodeStatus_PoweredOff:
+		return "Powered Off"
+	default:
+		return strconv.Itoa(status)
+	}
+}
 
 func createNode() error {
 	dcId, err := strconv.Atoi(zone)
@@ -216,13 +245,19 @@ func createNode() error {
 			node.PrivateIP = ip.IPAddress
 		}
 	}
+	oneliners.FILE(fmt.Sprintf("Node = %v", pretty.Formatter(node)))
+
+	parts := strings.SplitN(node.PublicIP, ".", 4)
+	node.Name = fmt.Sprintf("%s-%03s-%03s-%03s-%03s", clusterName, parts[0], parts[1], parts[2], parts[3])
+	fmt.Printf("%03s-%03d-%03d-%03d", "1", 2, 3, 4)
 
 	_, err = client.Linode.Update(linodeId, map[string]interface{}{
-		"Label": name,
+		"Label": node.Name,
 	})
 	if err != nil {
 		return err
 	}
+	os.Exit(1)
 
 	scriptId, err := getStartupScriptID()
 	if err != nil {
