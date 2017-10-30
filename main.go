@@ -32,11 +32,9 @@ var (
 	clusterName  = "c1"
 	zone         = "3"
 	sku          = "1"
-	rootPassword = "tamal" // CHANGE_IT
+	rootPassword = "change@it" // CHANGE_IT
 
 	scriptName = "linode-demo"
-
-	name = ""
 )
 
 type NodeInfo struct {
@@ -73,9 +71,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	//err := createNode()
-	//oneliners.FILE(err)
 }
 
 func detectKernel() (int, error) {
@@ -150,9 +145,11 @@ func getStartupScriptID() (int, error) {
 }
 
 func createOrUpdateStackScript() (int, error) {
-	script := fmt.Sprintf(`#! /bin/bash
+	script := fmt.Sprintf(`#!/bin/bash
 # %s
+
 apt-get update
+apt-get upgrade -y
 `, time.Now().String())
 	scripts, err := client.StackScript.List(0)
 	if err != nil {
@@ -231,7 +228,6 @@ func createNode() error {
 	}
 
 	node := NodeInfo{
-		Name:       "", // host.Label.String(),
 		ExternalID: strconv.Itoa(linodeId),
 	}
 	ips, err := client.Ip.List(linodeId, -1)
@@ -251,24 +247,21 @@ func createNode() error {
 	node.Name = fmt.Sprintf("%s-%03s-%03s-%03s-%03s", clusterName, parts[0], parts[1], parts[2], parts[3])
 	fmt.Printf("%03s-%03d-%03d-%03d", "1", 2, 3, 4)
 
+	//node.Name = "c1-xyz"
+
 	_, err = client.Linode.Update(linodeId, map[string]interface{}{
 		"Label": node.Name,
 	})
 	if err != nil {
 		return err
 	}
-	os.Exit(1)
 
 	scriptId, err := getStartupScriptID()
 	if err != nil {
 		return err
 	}
 
-	stackScriptUDFResponses := fmt.Sprintf(`{
-  "cluster": "%v",
-  "instance": "%v",
-  "stack_script_id": "%v"
-}`, clusterName, name, scriptId)
+	stackScriptUDFResponses := fmt.Sprintf(`{"hostname": "%s"}`, node.Name)
 
 	mt, err := data.ClusterMachineType("linode", sku)
 	if err != nil {
@@ -284,7 +277,7 @@ func createNode() error {
 	args := map[string]string{
 	// "rootSSHKey": string(SSHKey(ctx).PublicKey),
 	}
-	rootDisk, err := client.Disk.CreateFromStackscript(scriptId, linodeId, name, stackScriptUDFResponses, distributionID, rootDiskSize, rootPassword, args)
+	rootDisk, err := client.Disk.CreateFromStackscript(scriptId, linodeId, node.Name, stackScriptUDFResponses, distributionID, rootDiskSize, rootPassword, args)
 	if err != nil {
 		return err
 	}
@@ -299,7 +292,7 @@ func createNode() error {
 	//if err != nil {
 	//	return err
 	//}
-	config, err := client.Config.Create(linodeId, kernelId, name, map[string]string{
+	config, err := client.Config.Create(linodeId, kernelId, node.Name, map[string]string{
 		"RootDeviceNum": "1",
 		"DiskList":      fmt.Sprintf("%d,%d", rootDisk.DiskJob.DiskId, swapDisk.DiskJob.DiskId),
 	})
@@ -311,37 +304,12 @@ func createNode() error {
 		return err
 	}
 	oneliners.FILE(fmt.Printf("Running linode boot job %v", jobResp.JobId.JobId))
-	oneliners.FILE(fmt.Printf("Linode %v created", name))
+	oneliners.FILE(fmt.Printf("Linode %v created", node.Name))
 
-	// return linodeId, config.LinodeConfigId.LinodeConfigId, err
-
-	err = waitForStatus(linodeId, LinodeStatus_Running)
-	if err != nil {
-		return err
-	}
-
-	//node := api.NodeInfo{
-	//	Name:       "", // host.Label.String(),
-	//	ExternalID: strconv.Itoa(linodeId),
-	//}
-	//ips, err := client.Ip.List(linodeId, -1)
+	//err = waitForStatus(linodeId, LinodeStatus_Running)
 	//if err != nil {
-	//	return  err
+	//	return err
 	//}
-	//for _, ip := range ips.FullIPAddresses {
-	//	if ip.IsPublic == 1 {
-	//		node.PublicIP = ip.IPAddress
-	//	} else {
-	//		node.PrivateIP = ip.IPAddress
-	//	}
-	//}
-
-	_, err = client.Linode.Update(linodeId, map[string]interface{}{
-		"Label": name,
-	})
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
